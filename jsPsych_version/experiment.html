@@ -106,29 +106,164 @@ DESCRIPTION: This is the jsPsych version of the stop-signal task
 
   // define the images to be loaded, the actual preloading occurs in the jsPsych.init function at the bottom
 
-  var pre_load_stimuli = [fix_stim, go_stim1, go_stim2, stop_stim1, stop_stim2];
+  var pre_load_stimuli = [
+       fix_stim,
+       go_stim1,
+       go_stim2,
+       stop_stim1,
+       stop_stim2
+     ];
 
-  // ===== CUE SETUP =====
-  var drug_cues = [
-    "img/cues/drug/1.png",
-    "img/cues/drug/2.png",
-    "img/cues/drug/3.png",
-    "img/cues/drug/4.png"
-  ];
+// ======================================================
+// DRUG-CUE SETTINGS
+// ======================================================
 
-  var neutral_cues = [
-    "img/cues/neutral/1.png",
-    "img/cues/neutral/2.png",
-    "img/cues/neutral/3.png",
-    "img/cues/neutral/4.png"
-  ];
+var selectedDrug = "";
+var selectedMethod = "";
 
-  pre_load_stimuli = pre_load_stimuli.concat(drug_cues, neutral_cues);
+// Stores the cue selected for the current trial.
+var currentCueId = null;
+var currentCueType = null;
 
-  function randomCue(cueType) {
-    var pool = cueType === "drug" ? drug_cues : neutral_cues;
-    return jsPsych.randomization.sampleWithReplacement(pool, 1)[0];
+var validMethods = {
+  alcohol: ["beer", "spirits", "wine"],
+  cannabis: ["pipe", "bong", "vape", "blunt"],
+  nicotine: ["cigarette", "vape", "pouch"],
+  cocaine: ["pipe", "snort"],
+  meth: ["iv"],
+  opioid: ["iv"]
+};
+
+// Odd image numbers contain left arrows.
+var leftCueIds = [
+  1, 3, 5, 7, 9,
+  11, 13, 15, 17, 19
+];
+
+// Even image numbers contain right arrows.
+var rightCueIds = [
+  2, 4, 6, 8, 10,
+  12, 14, 16, 18, 20
+];
+
+// function sampleOne(array) {
+//   return jsPsych.randomization
+//     .sampleWithoutReplacement(array, 1)[0];
+// }
+
+// function chooseCueId(stimulusChoice) {
+//   if (stimulusChoice === choice_stim1) {
+//     return sampleOne(leftCueIds);
+//   } else {
+//     return sampleOne(rightCueIds);
+//   }
+// }
+
+var leftQueue = jsPsych.randomization.shuffle(leftCueIds.slice());
+var rightQueue = jsPsych.randomization.shuffle(rightCueIds.slice());
+
+function chooseCueId(stimulusChoice) {
+
+  var queue =
+    stimulusChoice === choice_stim1
+      ? leftQueue
+      : rightQueue;
+
+  if (queue.length === 0) {
+    queue = jsPsych.randomization.shuffle(
+      stimulusChoice === choice_stim1
+        ? leftCueIds.slice()
+        : rightCueIds.slice()
+    );
+
+    if (stimulusChoice === choice_stim1) {
+      leftQueue = queue;
+    } else {
+      rightQueue = queue;
+    }
   }
+
+  return queue.pop();
+}
+
+
+     
+function getCuePath(cueType, imageType, cueId) {
+  var folder;
+
+  if (cueType === "drug") {
+    folder =
+      "img/cues/" +
+      selectedDrug + "/" +
+      selectedMethod;
+  } else {
+    folder =
+      "img/cues/neutral/" +
+      selectedMethod;
+  }
+
+  return (
+    folder + "/" +
+    imageType + "_" +
+    cueId + ".png"
+  );
+}
+
+// ======================================================
+// PRELOAD ALL POSSIBLE CUE IMAGES
+// ======================================================
+
+var cueFolders = [
+  "img/cues/alcohol/beer",
+  "img/cues/alcohol/spirits",
+  "img/cues/alcohol/wine",
+
+  "img/cues/cannabis/pipe",
+  "img/cues/cannabis/bong",
+  "img/cues/cannabis/vape",
+  "img/cues/cannabis/blunt",
+
+  "img/cues/nicotine/cigarette",
+  "img/cues/nicotine/vape",
+  "img/cues/nicotine/pouch",
+
+  "img/cues/cocaine/pipe",
+  "img/cues/cocaine/snort",
+
+  "img/cues/meth/iv",
+  "img/cues/opioid/iv",
+
+  "img/cues/neutral/beer",
+  "img/cues/neutral/spirits",
+  "img/cues/neutral/wine",
+  "img/cues/neutral/pipe",
+  "img/cues/neutral/bong",
+  "img/cues/neutral/vape",
+  "img/cues/neutral/blunt",
+  "img/cues/neutral/cigarette",
+  "img/cues/neutral/pouch",
+  "img/cues/neutral/snort",
+  "img/cues/neutral/iv"
+];
+
+for (var folderIndex = 0; folderIndex < cueFolders.length; folderIndex++) {
+  for (var imageIndex = 1; imageIndex <= 20; imageIndex++) {
+
+    pre_load_stimuli.push(
+      cueFolders[folderIndex] +
+      "/go_" +
+      imageIndex +
+      ".png"
+    );
+
+    pre_load_stimuli.push(
+      cueFolders[folderIndex] +
+      "/stop_" +
+      imageIndex +
+      ".png"
+    );
+  }
+}
 
 
 
@@ -146,7 +281,7 @@ DESCRIPTION: This is the jsPsych version of the stop-signal task
 
   var ngostop = 1/nprop      // covert proportion to trial numbers. E.g. 1/5 = 1 stop signal and 4 go
 
-  var ntrials = ngostop * 2  // total number of trials in basic design (2 two choice stimuli x ngostop)
+  var ntrials = ngostop * 4  // total number of trials in basic design (2 two choice stimuli x ngostop)
 
   var signalArray = Array(ngostop-1).fill('go'); // no-signal trials
 
@@ -180,73 +315,52 @@ DESCRIPTION: This is the jsPsych version of the stop-signal task
 
   //  - set a data property with additional attributes for identifying the type of trial
 
-  for (var i = 0; i < design.length; i++) {
+for (var i = 0; i < design.length; i++) {
 
-      design[i].data = {}
+  design[i].data = {};
 
-      design[i].cueImage = function() {
-           return randomCue(jsPsych.timelineVariable("cueType", true));
-      };
+ 
 
-      design[i].data.cueType = design[i].cueType;
+  if (
+    design[i].stim === choice_stim1 &&
+    design[i].signal === "go"
+  ) {
 
-      if ((design[i].stim == choice_stim1) && (design[i].signal == 'go')) {
+    design[i].data.stim = choice_stim1;
+    design[i].data.correct_response = cresp_stim1;
+    design[i].data.signal = "no";
 
-        design[i].fixation = fix_stim;
-        design[i].first_stimulus = go_stim1;
+  } else if (
+    design[i].stim === choice_stim2 &&
+    design[i].signal === "go"
+  ) {
 
-        design[i].second_stimulus = go_stim1;
+    design[i].data.stim = choice_stim2;
+    design[i].data.correct_response = cresp_stim2;
+    design[i].data.signal = "no";
 
-        design[i].data.stim = choice_stim1;
+  } else if (
+    design[i].stim === choice_stim1 &&
+    design[i].signal === "stop"
+  ) {
 
-        design[i].data.correct_response = cresp_stim1;
+    design[i].data.stim = choice_stim1;
+    design[i].data.correct_response = "undefined";
+    design[i].data.signal = "yes";
 
-        design[i].data.signal = "no";
+  } else if (
+    design[i].stim === choice_stim2 &&
+    design[i].signal === "stop"
+  ) {
 
-      } else if ((design[i].stim == choice_stim2) && (design[i].signal == 'go')) {
+    design[i].data.stim = choice_stim2;
+    design[i].data.correct_response = "undefined";
+    design[i].data.signal = "yes";
+  }
 
-        design[i].fixation = fix_stim;
-        design[i].first_stimulus = go_stim2;
+  design[i].data.cueType = design[i].cueType;
 
-        design[i].second_stimulus = go_stim2;
-
-        design[i].data.stim = choice_stim2;
-
-        design[i].data.correct_response = cresp_stim2;
-
-        design[i].data.signal = "no";
-
-      } else if ((design[i].stim == choice_stim1) && (design[i].signal == 'stop')) {
-
-        design[i].fixation = fix_stim;
-        design[i].first_stimulus = go_stim1;
-
-        design[i].second_stimulus = stop_stim1;
-
-        design[i].data.stim = choice_stim1;
-
-        design[i].data.correct_response = "undefined";
-
-        design[i].data.signal = "yes";
-
-      } else if ((design[i].stim == choice_stim2) && (design[i].signal == 'stop')) {
-
-        design[i].fixation = fix_stim;
-        design[i].first_stimulus = go_stim2;
-
-        design[i].second_stimulus = stop_stim2;
-
-        design[i].data.stim = choice_stim2;
-
-        design[i].data.correct_response = "undefined";
-
-        design[i].data.signal = "yes";
-
-      }
-
-      delete design[i].signal; delete design[i].stim;
-
-  };
+}
 
 
 
@@ -441,6 +555,84 @@ DESCRIPTION: This is the jsPsych version of the stop-signal task
 
   };
 
+var drug_question = {
+
+  type: "survey-multi-choice",
+  questions: [
+    {
+      prompt: "What is your primary drug of choice?",
+      name: "drug",
+      options: [
+        "alcohol",
+        "cannabis",
+        "nicotine",
+        "cocaine",
+        "meth",
+        "opioid"
+      ],
+      required: true
+    }
+  ],
+
+  button_label: label_next_button,
+
+  on_finish: function(data) {
+
+    var responses = JSON.parse(data.responses);
+
+    selectedDrug = responses.drug;
+
+    jsPsych.data.addProperties({
+      drug: selectedDrug
+    });
+  }
+};
+
+var method_question = {
+
+  type: "survey-multi-choice",
+
+  questions: [
+    {
+      prompt: "What is your preferred mode of consumption?",
+      name: "method",
+      options: ["placeholder"],
+      required: true
+    }
+  ],
+
+  button_label: label_next_button,
+
+  on_start: function(trial) {
+
+    if (!selectedDrug || !validMethods[selectedDrug]) {
+      throw new Error(
+        "Drug selection is missing before method question."
+      );
+    }
+
+    trial.questions = [
+      {
+        prompt: "What is your preferred mode of consumption?",
+        name: "method",
+        options: validMethods[selectedDrug],
+        required: true
+      }
+    ];
+  },
+
+  on_finish: function(data) {
+
+    var responses = JSON.parse(data.responses);
+
+    selectedMethod = responses.method;
+
+    jsPsych.data.addProperties({
+      method: selectedMethod
+    });
+  }
+};
+
 
 
   // instruction trial
@@ -524,97 +716,164 @@ DESCRIPTION: This is the jsPsych version of the stop-signal task
   // use custom-stop-signal-plugin.js to show three consecutive stimuli within one trial
   // (fixation -> first stimulus -> second stimulus, with variable inter-stimuli-intervals)
 
-  var cue_trial = {
-       type: "image-keyboard-response",
-       stimulus: jsPsych.timelineVariable("cueImage"),
-       choices: jsPsych.NO_KEYS,
-       trial_duration: 750,
-       data: {
-         trial_part: "cue",
-         cueType: jsPsych.timelineVariable("cueType")
-       }
-  };
+
 
   var stimulus = {
 
-    type: 'custom-stop-signal-plugin',
+       type: "custom-stop-signal-plugin",
+     
+       fixation: fix_stim,
+     
+       fixation_duration: FIX,
+     
+       stimulus1: "",
+     
+       stimulus2: "",
+     
+       trial_duration: MAXRT,
+     
+       ISI: function() {
+         return SSD;
+       },
+     
+       response_ends_trial: true,
+     
+       choices: [
+         cresp_stim1,
+         cresp_stim2
+       ],
+     
+       data: jsPsych.timelineVariable("data"),
+     
+       on_start: function(trial) {
+     
+         var stimulusChoice =
+            jsPsych.timelineVariable("stim", true);
 
-    fixation: jsPsych.timelineVariable('fixation'),
-    fixation_duration: FIX,
-    stimulus1: jsPsych.timelineVariable('first_stimulus'),
+         var signalType =
+            jsPsych.timelineVariable("signal", true);
+               
+         currentCueType =
+           jsPsych.timelineVariable(
+             "cueType",
+             true
+           );
+     
+    /*
+      choice_stim1 receives an odd-numbered image:
+      left arrow.
 
-    stimulus2: jsPsych.timelineVariable('second_stimulus'),
+      choice_stim2 receives an even-numbered image:
+      right arrow.
+    */
+    currentCueId = chooseCueId(stimulusChoice);
 
-    trial_duration: MAXRT, // this is the max duration of the actual stimulus (excluding fixation time)
-    // inter stimulus interval between first and second stimulus = stop signal delay (SSD)
-    ISI: function() {
-      var duration = SSD;
+    var goImage = getCuePath(
+      currentCueType,
+      "go",
+      currentCueId
+    );
 
-      return duration
+    var secondImage;
 
-    },
-    response_ends_trial: true,
+    if (signalType === "stop") {
 
-    choices: [cresp_stim1, cresp_stim2],
+      secondImage = getCuePath(
+        currentCueType,
+        "stop",
+        currentCueId
+      );
 
-    data: jsPsych.timelineVariable('data'),
+    } else {
 
-    // was the response correct? adapt SSD accordingly
+      secondImage = goImage;
+    }
+     
+     trial.stimulus1 = goImage;
+     trial.stimulus2 = secondImage;
+},
 
-    on_finish: function(data) {
+  on_finish: function(data) {
 
-      // check if the response was correct
-      data.response = jsPsych.pluginAPI.convertKeyCodeToKeyCharacter(data.key_press); // keys are stored in keycodes not in character, so convert for convenience
+    data.response =
+      jsPsych.pluginAPI
+        .convertKeyCodeToKeyCharacter(
+          data.key_press
+        );
 
-      data.response = String(data.response); // convert explicitly to string so that "undefined" (no response) does not lead to empty cells in the datafile
-      data.correct = data.response == data.correct_response;
+    data.response = String(data.response);
 
-      // if no response was made, the reaction time should not be -250 but null
-      if (data.rt == -250) {
-        data.rt = null
-      };
-      // on go trials, reaction times on the fixation (below zero) are always wrong
-      if (data.signal == 'no' && data.rt < 0){
-        data.correct = false;
-      };
-      // set and adapt stop signal delay (SSD)
-      data.SSD = SSD;
+    data.correct =
+      data.response == data.correct_response;
 
-      data.trial_i = trial_ind;
-
-      data.block_i = block_ind;
-
-      trial_ind = trial_ind + 1;
-
-      if (data.signal == 'yes') {
-
-        if (data.correct) {
-
-          SSD = SSD + SSDstep;
-
-          if (SSD >= MAXRT) {
-
-            SSD = MAXRT - SSDstep
-
-          };
-
-        } else {
-
-          SSD = SSD - SSDstep;
-
-          if (SSD <= SSDstep) {
-
-            SSD = SSDstep
-
-          };
-
-        }
-
-      }
-
+    if (data.rt == -250) {
+      data.rt = null;
     }
 
-  };
+    if (
+      data.signal == "no" &&
+      data.rt !== null &&
+      data.rt < 0
+    ) {
+      data.correct = false;
+    }
+
+    data.SSD = SSD;
+    data.trial_i = trial_ind;
+    data.block_i = block_ind;
+
+    // Save cue information on the same row as RT and accuracy.
+    data.cueType = currentCueType;
+    data.cueId = currentCueId;
+
+    data.cueDirection =
+      currentCueId % 2 === 1
+        ? "left"
+        : "right";
+
+    data.cueGoImage = getCuePath(
+      currentCueType,
+      "go",
+      currentCueId
+    );
+
+    if (data.signal === "yes") {
+
+      data.cueStopImage = getCuePath(
+        currentCueType,
+        "stop",
+        currentCueId
+      );
+
+    } else {
+
+      data.cueStopImage = "";
+    }
+
+    trial_ind = trial_ind + 1;
+
+    // Adjust the stop-signal delay.
+    if (data.signal == "yes") {
+
+      if (data.correct) {
+
+        SSD = SSD + SSDstep;
+
+        if (SSD >= MAXRT) {
+          SSD = MAXRT - SSDstep;
+        }
+
+      } else {
+
+        SSD = SSD - SSDstep;
+
+        if (SSD <= SSDstep) {
+          SSD = SSDstep;
+        }
+      }
+    }
+  }
+};
 
 
 
@@ -839,8 +1098,37 @@ DESCRIPTION: This is the jsPsych version of the stop-signal task
       // the next piece of codes orders the columns of the data file
       var d = selected_data.values() // get the data values
       // make an array that specifies the order of the object properties
-      var arr = ['participantID','age','gender','block_i','trial_i','stim','cueType','signal','SSD','response','rt','correct','focus','Fullscreen',
-      'time_elapsed','browser_name','browser_version','os_name','os_version','tablet','mobile','screen_resolution','window_resolution'];
+      var arr = [
+       'participantID',
+       'age',
+       'gender',
+       'drug',
+       'method',
+       'block_i',
+       'trial_i',
+       'stim',
+       'cueType',
+       'cueId',
+       'cueDirection',
+       'cueGoImage',
+       'cueStopImage',
+       'signal',
+       'SSD',
+       'response',
+       'rt',
+       'correct',
+       'focus',
+       'Fullscreen',
+       'time_elapsed',
+       'browser_name',
+       'browser_version',
+       'os_name',
+       'os_version',
+       'tablet',
+       'mobile',
+       'screen_resolution',
+       'window_resolution'
+     ];
       new_arr = [] // we will fill this array with the ordered data
       function myFunction(item) { // this is function is called in the arr.forEach call below
         new_obj[item] = obj[item]
@@ -883,11 +1171,28 @@ DESCRIPTION: This is the jsPsych version of the stop-signal task
 
     if (fullscreen){
 
-      var start_timeline = [welcome, consent, participant_id, age, gender, fullscr, instructions]
+      var start_timeline = [welcome,
+       consent,
+       participant_id,
+       age,
+       gender,
+       drug_question,
+       method_question,
+       fullscr,
+       instructions
+     ]
 
     } else {
 
-      var start_timeline = [welcome, consent, participant_id, age, gender, instructions]
+      var start_timeline = [welcome,
+       consent,
+       participant_id,
+       age,
+       gender,
+       drug_question,
+       method_question,
+       instructions
+     ]
 
     }
 
@@ -907,12 +1212,27 @@ DESCRIPTION: This is the jsPsych version of the stop-signal task
 
       if (fullscreen) {
 
-        var start_timeline = [welcome, consent, age, gender, fullscr, instructions]
+        var start_timeline = [  welcome,
+            consent,
+            age,
+            gender,
+            drug_question,
+            method_question,
+            fullscr,
+            instructions
+          ]
 
       } else {
 
-        var start_timeline = [welcome, consent, age, gender, instructions]
-
+        var start_timeline = [
+            welcome,
+            consent,
+            age,
+            gender,
+            drug_question,
+            method_question,
+            instructions
+          ]
       }
 
   }
@@ -960,7 +1280,13 @@ DESCRIPTION: This is the jsPsych version of the stop-signal task
 
   var trial_procedure = {
 
-    timeline: [blank_ITI, cue_trial, held_down_node, stimulus, feedback_node, evaluate_end_if_practice],
+    timeline: [
+       blank_ITI,
+       held_down_node,
+       stimulus,
+       feedback_node,
+       evaluate_end_if_practice
+     ],
 
     timeline_variables: design,
 
@@ -1076,18 +1402,48 @@ DESCRIPTION: This is the jsPsych version of the stop-signal task
 
         if (data.trial_index == id_index){ // write header
 
-          data_row = "participantID,age,gender,block_i,trial_i,stim,cueType,signal,SSD,response,rt,correct," +
-                        "focus,Fullscreen,time_elapsed,browser_name,browser_version,os_name,os_version," +
-                        "tablet,mobile,screen_resolution,window_resolution\n"
+          data_row =
+            "participantID,age,gender,drug,method," +
+            "block_i,trial_i,stim," +
+            "cueType,cueId,cueDirection,cueGoImage,cueStopImage," +
+            "signal,SSD,response,rt,correct," +
+            "focus,Fullscreen,time_elapsed," +
+            "browser_name,browser_version,os_name,os_version," +
+            "tablet,mobile,screen_resolution,window_resolution\n";
           appendData('SST_data_'+ subjID +'.csv',data_row)
 
         } else if (data.trial_type == 'custom-stop-signal-plugin'){ // append data each stimulus
 
-          data_row = data.participantID + ',' + data.age + ',' + data.gender + ',' + data.block_i + ',' + data.trial_i + ',' +
-                        data.stim + ',' + data.cueType + ',' + data.signal + ',' + data.SSD + ',' + data.response + ',' + data.rt + ',' + data.correct + ',' +
-                        data.focus + ',' + data.Fullscreen + ',' + data.time_elapsed + ',' + data.browser_name + ',' +
-                        data.browser_version + ',' + data.os_name + ',' + data.os_version + ',' + data.tablet + ',' + data.mobile + ',' +
-                        data.screen_resolution + ',' + data.window_resolution + '\n'
+          data_row =
+            data.participantID + ',' +
+            data.age + ',' +
+            data.gender + ',' +
+            data.drug + ',' +
+            data.method + ',' +
+            data.block_i + ',' +
+            data.trial_i + ',' +
+            data.stim + ',' +
+            data.cueType + ',' +
+            data.cueId + ',' +
+            data.cueDirection + ',' +
+            data.cueGoImage + ',' +
+            data.cueStopImage + ',' +
+            data.signal + ',' +
+            data.SSD + ',' +
+            data.response + ',' +
+            data.rt + ',' +
+            data.correct + ',' +
+            data.focus + ',' +
+            data.Fullscreen + ',' +
+            data.time_elapsed + ',' +
+            data.browser_name + ',' +
+            data.browser_version + ',' +
+            data.os_name + ',' +
+            data.os_version + ',' +
+            data.tablet + ',' +
+            data.mobile + ',' +
+            data.screen_resolution + ',' +
+            data.window_resolution + '\n';
           appendData('SST_data_'+ subjID +'.csv',data_row)
 
         }
