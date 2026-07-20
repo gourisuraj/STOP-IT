@@ -579,7 +579,11 @@ var drug_question = {
   on_finish: function(data) {
     var responses = JSON.parse(data.responses);
 
-    selectedDrug = responses.drug;
+    console.log("Drug responses:", responses);
+
+    selectedDrug = responses.Q0;
+
+    console.log("Selected drug:", selectedDrug);
 
     jsPsych.data.addProperties({
       drug: selectedDrug
@@ -605,15 +609,16 @@ var method_question = {
 
   on_start: function(trial) {
 
-    if (
-      !selectedDrug ||
-      !validMethods[selectedDrug]
-    ) {
-      throw new Error(
-        "A valid substance must be selected before the method question."
-      );
-    }
+    console.log("selectedDrug =", selectedDrug);
+    console.log("validMethods =", validMethods);
 
+    trial.questions = [{
+        prompt: "What is your preferred form or method of use?",
+        name: "method",
+        options: validMethods[selectedDrug],
+        required: true
+    }];
+}
     trial.questions = [
       {
         prompt: "What is your preferred form or method of use?",
@@ -627,7 +632,10 @@ var method_question = {
   on_finish: function(data) {
     var responses = JSON.parse(data.responses);
 
-    selectedMethod = responses.method;
+    console.log("Method responses:", responses);
+    console.log("Selected method:", selectedMethod);
+
+    selectedMethod = responses.Q0;
 
     jsPsych.data.addProperties({
       method: selectedMethod,
