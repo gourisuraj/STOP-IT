@@ -107,12 +107,8 @@ DESCRIPTION: This is the jsPsych version of the stop-signal task
   // define the images to be loaded, the actual preloading occurs in the jsPsych.init function at the bottom
 
   var pre_load_stimuli = [
-       fix_stim,
-       go_stim1,
-       go_stim2,
-       stop_stim1,
-       stop_stim2
-     ];
+      fix_stim
+  ];
 
 // ======================================================
 // DRUG-CUE SETTINGS
@@ -121,85 +117,87 @@ DESCRIPTION: This is the jsPsych version of the stop-signal task
 var selectedDrug = "";
 var selectedMethod = "";
 
-// Stores the cue selected for the current trial.
 var currentCueId = null;
 var currentCueType = null;
 
+/*
+Participant-facing method labels.
+
+"wine/sparkling" will be converted to the folder name
+"wine_sparkling" when constructing image paths.
+*/
 var validMethods = {
-  alcohol: ["beer", "spirits", "wine"],
-  cannabis: ["pipe", "bong", "vape", "blunt"],
-  nicotine: ["cigarette", "vape", "pouch"],
-  cocaine: ["pipe", "snort"],
-  meth: ["iv"],
-  opioid: ["iv"]
+  cannabis: [
+    "blunt",
+    "bong",
+    "pipe",
+    "vape"
+  ],
+
+  alcohol: [
+    "beer",
+    "mixed",
+    "spirits",
+    "wine/sparkling"
+  ],
+
+  nicotine: [
+    "cigarette",
+    "vape"
+  ]
 };
 
-// Odd image numbers contain left arrows.
+/*
+Convert participant-facing method names into safe folder names.
+A slash cannot be used as part of a folder name because it means
+"open another folder."
+*/
+function getMethodFolder(method) {
+  if (method === "wine/sparkling") {
+    return "wine_sparkling";
+  }
+
+  return method;
+}
+
+// Odd-numbered images contain left arrows.
 var leftCueIds = [
   1, 3, 5, 7, 9,
   11, 13, 15, 17, 19
 ];
 
-// Even image numbers contain right arrows.
+// Even-numbered images contain right arrows.
 var rightCueIds = [
   2, 4, 6, 8, 10,
   12, 14, 16, 18, 20
 ];
 
-// function sampleOne(array) {
-//   return jsPsych.randomization
-//     .sampleWithoutReplacement(array, 1)[0];
-// }
-
-// function chooseCueId(stimulusChoice) {
-//   if (stimulusChoice === choice_stim1) {
-//     return sampleOne(leftCueIds);
-//   } else {
-//     return sampleOne(rightCueIds);
-//   }
-// }
-
-var leftQueue = jsPsych.randomization.shuffle(leftCueIds.slice());
-var rightQueue = jsPsych.randomization.shuffle(rightCueIds.slice());
-
-function chooseCueId(stimulusChoice) {
-
-  var queue =
-    stimulusChoice === choice_stim1
-      ? leftQueue
-      : rightQueue;
-
-  if (queue.length === 0) {
-    queue = jsPsych.randomization.shuffle(
-      stimulusChoice === choice_stim1
-        ? leftCueIds.slice()
-        : rightCueIds.slice()
-    );
-
-    if (stimulusChoice === choice_stim1) {
-      leftQueue = queue;
-    } else {
-      rightQueue = queue;
-    }
-  }
-
-  return queue.pop();
+function sampleOne(array) {
+  return jsPsych.randomization
+    .sampleWithoutReplacement(array, 1)[0];
 }
 
+function chooseCueId(stimulusChoice) {
+  if (stimulusChoice === choice_stim1) {
+    return sampleOne(leftCueIds);
+  }
 
-     
+  return sampleOne(rightCueIds);
+}
+
 function getCuePath(cueType, imageType, cueId) {
+  var methodFolder = getMethodFolder(selectedMethod);
   var folder;
 
   if (cueType === "drug") {
     folder =
       "img/cues/" +
       selectedDrug + "/" +
-      selectedMethod;
+      methodFolder;
   } else {
     folder =
       "img/cues/neutral/" +
-      selectedMethod;
+      methodFolder;
   }
 
   return (
@@ -210,45 +208,48 @@ function getCuePath(cueType, imageType, cueId) {
 }
 
 // ======================================================
-// PRELOAD ALL POSSIBLE CUE IMAGES
+// PRELOAD CUE IMAGES
 // ======================================================
 
 var cueFolders = [
-  "img/cues/alcohol/beer",
-  "img/cues/alcohol/spirits",
-  "img/cues/alcohol/wine",
-
-  "img/cues/cannabis/pipe",
-  "img/cues/cannabis/bong",
-  "img/cues/cannabis/vape",
+  // Cannabis
   "img/cues/cannabis/blunt",
+  "img/cues/cannabis/bong",
+  "img/cues/cannabis/pipe",
+  "img/cues/cannabis/vape",
 
+  // Alcohol
+  "img/cues/alcohol/beer",
+  "img/cues/alcohol/mixed",
+  "img/cues/alcohol/spirits",
+  "img/cues/alcohol/wine_sparkling",
+
+  // Nicotine
   "img/cues/nicotine/cigarette",
   "img/cues/nicotine/vape",
-  "img/cues/nicotine/pouch",
 
-  "img/cues/cocaine/pipe",
-  "img/cues/cocaine/snort",
-
-  "img/cues/meth/iv",
-  "img/cues/opioid/iv",
-
-  "img/cues/neutral/beer",
-  "img/cues/neutral/spirits",
-  "img/cues/neutral/wine",
-  "img/cues/neutral/pipe",
-  "img/cues/neutral/bong",
-  "img/cues/neutral/vape",
+  // Matched neutral sets
   "img/cues/neutral/blunt",
-  "img/cues/neutral/cigarette",
-  "img/cues/neutral/pouch",
-  "img/cues/neutral/snort",
-  "img/cues/neutral/iv"
+  "img/cues/neutral/bong",
+  "img/cues/neutral/pipe",
+  "img/cues/neutral/vape",
+  "img/cues/neutral/beer",
+  "img/cues/neutral/mixed",
+  "img/cues/neutral/spirits",
+  "img/cues/neutral/wine_sparkling",
+  "img/cues/neutral/cigarette"
 ];
 
-for (var folderIndex = 0; folderIndex < cueFolders.length; folderIndex++) {
-  for (var imageIndex = 1; imageIndex <= 20; imageIndex++) {
-
+for (
+  var folderIndex = 0;
+  folderIndex < cueFolders.length;
+  folderIndex++
+) {
+  for (
+    var imageIndex = 1;
+    imageIndex <= 20;
+    imageIndex++
+  ) {
     pre_load_stimuli.push(
       cueFolders[folderIndex] +
       "/go_" +
@@ -264,8 +265,6 @@ for (var folderIndex = 0; folderIndex < cueFolders.length; folderIndex++) {
     );
   }
 }
-
-
 
   /* #########################################################################
 
@@ -558,17 +557,15 @@ for (var i = 0; i < design.length; i++) {
 var drug_question = {
 
   type: "survey-multi-choice",
+
   questions: [
     {
-      prompt: "What is your primary drug of choice?",
+      prompt: "What is your primary substance of choice?",
       name: "drug",
       options: [
-        "alcohol",
         "cannabis",
-        "nicotine",
-        "cocaine",
-        "meth",
-        "opioid"
+        "alcohol",
+        "nicotine"
       ],
       required: true
     }
@@ -577,7 +574,6 @@ var drug_question = {
   button_label: label_next_button,
 
   on_finish: function(data) {
-
     var responses = JSON.parse(data.responses);
 
     selectedDrug = responses.drug;
@@ -587,6 +583,7 @@ var drug_question = {
     });
   }
 };
+  
 
 var method_question = {
 
@@ -594,7 +591,7 @@ var method_question = {
 
   questions: [
     {
-      prompt: "What is your preferred mode of consumption?",
+      prompt: "What is your preferred form or method of use?",
       name: "method",
       options: ["placeholder"],
       required: true
@@ -605,15 +602,18 @@ var method_question = {
 
   on_start: function(trial) {
 
-    if (!selectedDrug || !validMethods[selectedDrug]) {
+    if (
+      !selectedDrug ||
+      !validMethods[selectedDrug]
+    ) {
       throw new Error(
-        "Drug selection is missing before method question."
+        "A valid substance must be selected before the method question."
       );
     }
 
     trial.questions = [
       {
-        prompt: "What is your preferred mode of consumption?",
+        prompt: "What is your preferred form or method of use?",
         name: "method",
         options: validMethods[selectedDrug],
         required: true
@@ -622,18 +622,16 @@ var method_question = {
   },
 
   on_finish: function(data) {
-
     var responses = JSON.parse(data.responses);
 
     selectedMethod = responses.method;
 
     jsPsych.data.addProperties({
-      method: selectedMethod
+      method: selectedMethod,
+      methodFolder: getMethodFolder(selectedMethod)
     });
   }
 };
-
-
 
   // instruction trial
 
