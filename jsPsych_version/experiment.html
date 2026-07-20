@@ -612,13 +612,20 @@ var method_question = {
     console.log("selectedDrug =", selectedDrug);
     console.log("validMethods =", validMethods);
 
-    trial.questions = [{
-        prompt: "What is your preferred form or method of use?",
-        name: "method",
-        options: validMethods[selectedDrug],
-        required: true
-    }];
-}
+    if (!selectedDrug || !validMethods[selectedDrug]) {
+      console.error("Invalid selectedDrug:", selectedDrug);
+
+      trial.questions = [
+        {
+          prompt: "Error: no valid drug was selected.",
+          options: ["Return and reload the page"],
+          required: true
+        }
+      ];
+
+      return;
+    }
+
     trial.questions = [
       {
         prompt: "What is your preferred form or method of use?",
@@ -630,12 +637,14 @@ var method_question = {
   },
 
   on_finish: function(data) {
+
     var responses = JSON.parse(data.responses);
 
     console.log("Method responses:", responses);
-    console.log("Selected method:", selectedMethod);
 
     selectedMethod = responses.Q0;
+
+    console.log("Selected method:", selectedMethod);
 
     jsPsych.data.addProperties({
       method: selectedMethod,
