@@ -1098,7 +1098,137 @@ var method_question = {
 
 
   // end trial and save the data
+  function createCueSummary(trials, participantID) {
 
+  var cueTypes = ["drug", "neutral"];
+  var summaryRows = [];
+
+  function mean(values) {
+    if (values.length === 0) {
+      return "";
+    }
+
+    var total = values.reduce(function(sum, value) {
+      return sum + value;
+    }, 0);
+
+    return Math.round((total / values.length) * 100) / 100;
+  }
+
+  function proportion(numerator, denominator) {
+    if (denominator === 0) {
+      return "";
+    }
+
+    return Math.round((numerator / denominator) * 1000) / 1000;
+  }
+
+  cueTypes.forEach(function(cueType) {
+
+    var cueTrials = trials.filter(function(trial) {
+      return trial.cueType === cueType;
+    });
+
+    var goTrials = cueTrials.filter(function(trial) {
+      return trial.signal === "no";
+    });
+
+    var stopTrials = cueTrials.filter(function(trial) {
+      return trial.signal === "yes";
+    });
+
+    var validGoRTs = goTrials
+      .filter(function(trial) {
+        return (
+          trial.correct === true &&
+          trial.rt !== null &&
+          trial.rt >= 0
+        );
+      })
+      .map(function(trial) {
+        return trial.rt;
+      });
+
+    var correctGoTrials = goTrials.filter(function(trial) {
+      return trial.correct === true;
+    }).length;
+
+    var incorrectGoTrials = goTrials.filter(function(trial) {
+      return (
+        trial.correct === false &&
+        trial.response !== "undefined"
+      );
+    }).length;
+
+    var missedGoTrials = goTrials.filter(function(trial) {
+      return (
+        trial.response === "undefined" ||
+        trial.key_press === null
+      );
+    }).length;
+
+    var successfulStops = stopTrials.filter(function(trial) {
+      return trial.correct === true;
+    }).length;
+
+    var failedStops = stopTrials.filter(function(trial) {
+      return trial.correct === false;
+    }).length;
+
+    var leftResponses = cueTrials.filter(function(trial) {
+      return trial.response === cresp_stim1;
+    }).length;
+
+    var rightResponses = cueTrials.filter(function(trial) {
+      return trial.response === cresp_stim2;
+    }).length;
+
+    var noResponses = cueTrials.filter(function(trial) {
+      return (
+        trial.response === "undefined" ||
+        trial.key_press === null
+      );
+    }).length;
+
+    summaryRows.push({
+      participantID: participantID,
+      drug: selectedDrug,
+      method: selectedMethod,
+      cueType: cueType,
+
+      totalTrials: cueTrials.length,
+      goTrials: goTrials.length,
+      stopTrials: stopTrials.length,
+
+      meanCorrectGoRT: mean(validGoRTs),
+
+      correctGoTrials: correctGoTrials,
+      incorrectGoTrials: incorrectGoTrials,
+      missedGoTrials: missedGoTrials,
+
+      goAccuracy: proportion(
+        correctGoTrials,
+        goTrials.length
+      ),
+
+      successfulStops: successfulStops,
+      failedStops: failedStops,
+
+      stopSuccessRate: proportion(
+        successfulStops,
+        stopTrials.length
+      ),
+
+      leftKeyResponses: leftResponses,
+      rightKeyResponses: rightResponses,
+      noResponseTrials: noResponses
+    });
+  });
+
+  return summaryRows;
+}
+
+     
   var goodbye = {
 
     type: "html-keyboard-response",
@@ -1159,11 +1289,89 @@ var method_question = {
         arr.forEach(myFunction) // for each element in the array run my function
         selected_data.values()[i] = new_obj; // insert the ordered values back in the jsPsych.data object
       }
-      if (!online) {
+if (!online) {
 
-        selected_data.localSave('csv', 'SST_data_' + subjID + '.csv');
+  // Save detailed trial-level data.
+  selected_data.localSave(
+    "csv",
+    "SST_data_" + subjID + ".csv"
+  );
 
+  var cueTrials = jsPsych.data
+    .get()
+    .filter({
+      trial_type: "custom-stop-signal-plugin"
+    })
+    .values();
+
+  var cueSummaryRows = createCueSummary(
+    cueTrials,
+    subjID
+  );
+
+  var summaryHeaders = [
+    "participantID",
+    "drug",
+    "method",
+    "cueType",
+    "totalTrials",
+    "goTrials",
+    "stopTrials",
+    "meanCorrectGoRT",
+    "correctGoTrials",
+    "incorrectGoTrials",
+    "missedGoTrials",
+    "goAccuracy",
+    "successfulStops",
+    "failedStops",
+    "stopSuccessRate",
+    "leftKeyResponses",
+    "rightKeyResponses",
+    "noResponseTrials"
+  ];
+
+  var summaryCSV =
+    summaryHeaders.join(",") + "\n";
+
+  cueSummaryRows.forEach(function(row) {
+
+    var rowValues = summaryHeaders.map(
+      function(header) {
+        return row[header];
       }
+    );
+
+    summaryCSV += rowValues.join(",") + "\n";
+  });
+
+  var summaryBlob = new Blob(
+    [summaryCSV],
+    {
+      type: "text/csv;charset=utf-8;"
+    }
+  );
+
+  var summaryURL =
+    URL.createObjectURL(summaryBlob);
+
+  var summaryLink =
+    document.createElement("a");
+
+  summaryLink.href = summaryURL;
+
+  summaryLink.download =
+    "SST_cue_summary_" +
+    subjID +
+    ".csv";
+
+  document.body.appendChild(summaryLink);
+  summaryLink.click();
+  document.body.removeChild(summaryLink);
+
+  URL.revokeObjectURL(summaryURL);
+}
+
+  }
 
     }
 
